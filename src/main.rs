@@ -7,7 +7,8 @@ use cli::Cli;
 use dirs::download_dir;
 use scraper::{Html, Selector};
 use selector::ValidSelector as _;
-use tokio::fs;
+use tokio::{fs, spawn};
+use url::Url;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -23,11 +24,16 @@ async fn main() -> Result<()> {
         .next()
         .ok_or_else(|| anyhow!("no audio"))?
         .attr("data-src-mp3")
-        .ok_or_else(|| anyhow!("no mp3 audio"))?;
-    let audio = reqwest::get(audio_url).await?.bytes().await?;
-    let file_name = format!("{}.mp3", cli.oxford().id());
-    #[expect(clippy::unwrap_used, reason = "downloads folder exists")]
-    fs::write(download_dir().unwrap().join(&file_name), audio).await?;
+        .ok_or_else(|| anyhow!("no mp3 audio"))?
+        .parse::<Url>()?;
+    let audio_file = spawn(async move {
+        let audio = spawn(reqwest::get(audio_url).await?.bytes());
+        let file_name = format!("{}.mp3", cli.oxford().id());
+        #[expect(clippy::unwrap_used, reason = "downloads folder exists")]
+        fs::write(download_dir().unwrap().join(&file_name), audio.await??).await?;
+
+        anyhow::Ok(file_name)
+    });
 
     for text in pronunciation
         .select(&Selector::from_static("span.phon"))
@@ -38,7 +44,7 @@ async fn main() -> Result<()> {
         print!("{text}");
     }
 
-    print!("[sound:{file_name}]");
+    print!("[sound:{}]", audio_file.await??);
 
     Ok(())
 }
