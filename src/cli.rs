@@ -20,6 +20,10 @@ pub struct Oxford {
 }
 
 impl Oxford {
+    pub const fn id(&self) -> &str {
+        self.id.as_str()
+    }
+
     pub fn url(&self) -> Url {
         #![expect(clippy::unwrap_used, reason = "valid URL")]
         let mut url =
