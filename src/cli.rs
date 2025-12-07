@@ -8,9 +8,25 @@ pub struct Cli {
     oxford: Oxford,
 }
 
+impl Cli {
+    pub const fn oxford(&self) -> &Oxford {
+        &self.oxford
+    }
+}
+
 #[derive(Clone)]
-struct Oxford {
+pub struct Oxford {
     id: String,
+}
+
+impl Oxford {
+    pub fn url(&self) -> Url {
+        #![expect(clippy::unwrap_used, reason = "valid URL")]
+        let mut url =
+            Url::parse("https://www.oxfordlearnersdictionaries.com/definition/english").unwrap();
+        url.path_segments_mut().unwrap().push(&self.id);
+        url
+    }
 }
 
 impl FromStr for Oxford {
