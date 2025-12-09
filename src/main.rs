@@ -4,7 +4,6 @@ mod selector;
 use anyhow::{Result, anyhow};
 use clap::Parser as _;
 use cli::Cli;
-use dirs::download_dir;
 use scraper::{Html, Selector};
 use selector::ValidSelector as _;
 use tokio::{fs, spawn};
@@ -29,8 +28,7 @@ async fn main() -> Result<()> {
     let audio_file = spawn(async move {
         let audio = spawn(reqwest::get(audio_url).await?.bytes());
         let file_name = format!("{}.mp3", cli.oxford().id());
-        #[expect(clippy::unwrap_used, reason = "downloads folder exists")]
-        fs::write(download_dir().unwrap().join(&file_name), audio.await??).await?;
+        fs::write(cli.path().join(&file_name), audio.await??).await?;
 
         anyhow::Ok(file_name)
     });

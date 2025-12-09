@@ -1,16 +1,23 @@
 use anyhow::bail;
 use clap::Parser;
 use core::str::FromStr;
+use std::path::{Path, PathBuf};
 use url::Url;
 
 #[derive(Parser)]
 pub struct Cli {
     oxford: Oxford,
+    #[arg(long)]
+    path: PathBuf,
 }
 
 impl Cli {
     pub const fn oxford(&self) -> &Oxford {
         &self.oxford
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
     }
 }
 
