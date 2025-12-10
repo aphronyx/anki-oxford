@@ -58,7 +58,11 @@ async fn main() -> Result<()> {
     pronunciation.push_str(&audio_file.await??);
     pronunciation.push(']');
 
-    csv::Writer::from_writer(stdout()).write_record([word, pronunciation, part_of_speech])?;
+    let mut csv = csv::Writer::from_writer(stdout());
+    for span in page.select(&Selector::from_static("span.def")) {
+        let definition = span.text().collect();
+        csv.write_record([&word, &pronunciation, &part_of_speech, &definition])?;
+    }
 
     Ok(())
 }
