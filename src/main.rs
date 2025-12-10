@@ -41,6 +41,13 @@ async fn main() -> Result<()> {
         .text()
         .collect();
 
+    let part_of_speech = page
+        .select(&Selector::from_static("span.pos"))
+        .next()
+        .ok_or_else(|| anyhow!("no part of speech"))?
+        .text()
+        .collect();
+
     let mut pronunciation = british_pronunciation
         .select(&Selector::from_static("span.phon"))
         .next()
@@ -51,7 +58,7 @@ async fn main() -> Result<()> {
     pronunciation.push_str(&audio_file.await??);
     pronunciation.push(']');
 
-    csv::Writer::from_writer(stdout()).write_record([word, pronunciation])?;
+    csv::Writer::from_writer(stdout()).write_record([word, pronunciation, part_of_speech])?;
 
     Ok(())
 }
