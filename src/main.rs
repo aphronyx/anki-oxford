@@ -6,6 +6,7 @@ use clap::Parser as _;
 use cli::Cli;
 use scraper::{Html, Selector};
 use selector::ValidSelector as _;
+use std::io::stdout;
 use tokio::{fs, spawn};
 use url::Url;
 
@@ -14,11 +15,11 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
     let res = reqwest::get(cli.oxford().url()).await?.text().await?;
     let page = Html::parse_document(&res);
-    let pronunciation = page
+    let british_pronunciation = page
         .select(&Selector::from_static("div.phons_br"))
         .next()
         .ok_or_else(|| anyhow!("no British pronunciation"))?;
-    let audio_url = pronunciation
+    let audio_url = british_pronunciation
         .select(&Selector::from_static("div.sound"))
         .next()
         .ok_or_else(|| anyhow!("no audio"))?
@@ -33,16 +34,16 @@ async fn main() -> Result<()> {
         anyhow::Ok(file_name)
     });
 
-    for text in pronunciation
+    let mut pronunciation = british_pronunciation
         .select(&Selector::from_static("span.phon"))
         .next()
         .ok_or_else(|| anyhow!("no phonetic"))?
         .text()
-    {
-        print!("{text}");
-    }
-
-    print!("[sound:{}]", audio_file.await??);
+        .collect::<String>();
+    pronunciation.push_str("[sound:");
+    pronunciation.push_str(&audio_file.await??);
+    pronunciation.push(']');
+    csv::Writer::from_writer(stdout()).write_record([pronunciation])?;
 
     Ok(())
 }
