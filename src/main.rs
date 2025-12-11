@@ -1,16 +1,14 @@
 mod cli;
+mod output;
 mod selector;
 
 use anyhow::{Result, anyhow};
 use clap::Parser as _;
 use cli::Cli;
+use output::Output;
 use scraper::{Html, Selector};
 use selector::ValidSelector as _;
-use std::{
-    env::set_current_dir,
-    fs::OpenOptions,
-    io::{Write, stdout},
-};
+use std::{env::set_current_dir, fs::OpenOptions, io::stdout};
 use tokio::{fs, spawn};
 use url::{Url, form_urlencoded};
 
@@ -71,14 +69,14 @@ async fn main() -> Result<()> {
     pronunciation.push_str(&audio_file.await??);
     pronunciation.push(']');
 
-    let wtr: Box<dyn Write> = if cli.output() {
+    let wtr = if cli.output() {
         let file = OpenOptions::new()
             .append(true)
             .create(true)
             .open("anki-oxford.csv")?;
-        Box::new(file)
+        Output::File(file)
     } else {
-        Box::new(stdout())
+        Output::Stdout(stdout())
     };
     let mut csv = csv::Writer::from_writer(wtr);
     for definition in definitions {
