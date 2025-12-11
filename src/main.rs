@@ -8,7 +8,7 @@ use scraper::{Html, Selector};
 use selector::ValidSelector as _;
 use std::io::stdout;
 use tokio::{fs, spawn};
-use url::Url;
+use url::{Url, form_urlencoded};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -26,10 +26,12 @@ async fn main() -> Result<()> {
         .attr("data-src-mp3")
         .ok_or_else(|| anyhow!("no mp3 audio"))?
         .parse::<Url>()?;
+    let id = cli.oxford().id().to_owned();
+    let path = cli.path().to_owned();
     let audio_file = spawn(async move {
         let audio = spawn(reqwest::get(audio_url).await?.bytes());
-        let file_name = format!("{}.mp3", cli.oxford().id());
-        fs::write(cli.path().join(&file_name), audio.await??).await?;
+        let file_name = format!("{id}.mp3");
+        fs::write(path.join(&file_name), audio.await??).await?;
 
         anyhow::Ok(file_name)
     });
@@ -48,6 +50,12 @@ async fn main() -> Result<()> {
         .text()
         .collect();
 
+    let definitions = page
+        .select(&Selector::from_static("span.def"))
+        .map(|span| span.text().collect())
+        .collect::<Vec<String>>();
+    let is_polysemous = definitions.len() > 1;
+
     let mut pronunciation = british_pronunciation
         .select(&Selector::from_static("span.phon"))
         .next()
@@ -59,9 +67,22 @@ async fn main() -> Result<()> {
     pronunciation.push(']');
 
     let mut csv = csv::Writer::from_writer(stdout());
-    for span in page.select(&Selector::from_static("span.def")) {
-        let definition = span.text().collect();
-        csv.write_record([&word, &pronunciation, &part_of_speech, &definition])?;
+    for definition in definitions {
+        let mut dictionary = cli.oxford().id().to_owned();
+        if is_polysemous {
+            dictionary.push_str("#:~:text=");
+            for str in form_urlencoded::byte_serialize(definition.as_bytes()) {
+                dictionary.push_str(if str == "+" { "%20" } else { str });
+            }
+        }
+
+        csv.write_record([
+            &word,
+            &pronunciation,
+            &part_of_speech,
+            &definition,
+            &dictionary,
+        ])?;
     }
 
     Ok(())
