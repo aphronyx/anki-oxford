@@ -9,11 +9,17 @@ pub struct Cli {
     oxford: Oxford,
     #[arg(long)]
     path: PathBuf,
+    #[arg(short, long)]
+    output: bool,
 }
 
 impl Cli {
     pub const fn oxford(&self) -> &Oxford {
         &self.oxford
+    }
+
+    pub const fn output(&self) -> bool {
+        self.output
     }
 
     pub fn path(&self) -> &Path {

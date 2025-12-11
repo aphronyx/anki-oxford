@@ -6,13 +6,19 @@ use clap::Parser as _;
 use cli::Cli;
 use scraper::{Html, Selector};
 use selector::ValidSelector as _;
-use std::io::stdout;
+use std::{
+    env::set_current_dir,
+    fs::OpenOptions,
+    io::{Write, stdout},
+};
 use tokio::{fs, spawn};
 use url::{Url, form_urlencoded};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
+    set_current_dir(cli.path())?;
+
     let res = reqwest::get(cli.oxford().url()).await?.text().await?;
     let page = Html::parse_document(&res);
     let british_pronunciation = page
@@ -27,11 +33,10 @@ async fn main() -> Result<()> {
         .ok_or_else(|| anyhow!("no mp3 audio"))?
         .parse::<Url>()?;
     let id = cli.oxford().id().to_owned();
-    let path = cli.path().to_owned();
     let audio_file = spawn(async move {
         let audio = spawn(reqwest::get(audio_url).await?.bytes());
         let file_name = format!("{id}.mp3");
-        fs::write(path.join(&file_name), audio.await??).await?;
+        fs::write(&file_name, audio.await??).await?;
 
         anyhow::Ok(file_name)
     });
@@ -66,7 +71,16 @@ async fn main() -> Result<()> {
     pronunciation.push_str(&audio_file.await??);
     pronunciation.push(']');
 
-    let mut csv = csv::Writer::from_writer(stdout());
+    let wtr: Box<dyn Write> = if cli.output() {
+        let file = OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open("anki-oxford.csv")?;
+        Box::new(file)
+    } else {
+        Box::new(stdout())
+    };
+    let mut csv = csv::Writer::from_writer(wtr);
     for definition in definitions {
         let mut dictionary = cli.oxford().id().to_owned();
         if is_polysemous {
