@@ -59,16 +59,6 @@ async fn main() -> Result<()> {
         .collect::<Vec<String>>();
     let is_polysemous = definitions.len() > 1;
 
-    let mut pronunciation = british_pronunciation
-        .select(&Selector::from_static("span.phon"))
-        .next()
-        .ok_or_else(|| anyhow!("no phonetic"))?
-        .text()
-        .collect::<String>();
-    pronunciation.push_str("[sound:");
-    pronunciation.push_str(&audio_file.await??);
-    pronunciation.push(']');
-
     let wtr = if cli.output() {
         let file = OpenOptions::new()
             .append(true)
@@ -79,6 +69,17 @@ async fn main() -> Result<()> {
         Output::Stdout(stdout())
     };
     let mut csv = csv::Writer::from_writer(wtr);
+
+    let mut pronunciation = british_pronunciation
+        .select(&Selector::from_static("span.phon"))
+        .next()
+        .ok_or_else(|| anyhow!("no phonetic"))?
+        .text()
+        .collect::<String>();
+    pronunciation.push_str("[sound:");
+    pronunciation.push_str(&audio_file.await??);
+    pronunciation.push(']');
+
     for definition in definitions {
         let mut dictionary = cli.oxford().id().to_owned();
         if is_polysemous {
