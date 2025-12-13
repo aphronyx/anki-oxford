@@ -90,11 +90,11 @@ async fn main() -> Result<()> {
         }
 
         csv.write_record([
+            &dictionary,
             &word,
             &pronunciation,
             &part_of_speech,
             &definition,
-            &dictionary,
         ])?;
     }
 
