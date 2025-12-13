@@ -10,7 +10,7 @@ use scraper::{Html, Selector};
 use selector::ValidSelector as _;
 use std::{env::set_current_dir, fs::OpenOptions, io::stdout};
 use tokio::{fs, spawn};
-use url::{Url, form_urlencoded};
+use url::Url;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -53,12 +53,6 @@ async fn main() -> Result<()> {
         .text()
         .collect();
 
-    let definitions = page
-        .select(&Selector::from_static("span.def"))
-        .map(|span| span.text().collect())
-        .collect::<Vec<String>>();
-    let is_polysemous = definitions.len() > 1;
-
     let wtr = if cli.output() {
         let file = OpenOptions::new()
             .append(true)
@@ -80,14 +74,18 @@ async fn main() -> Result<()> {
     pronunciation.push_str(&audio_file.await??);
     pronunciation.push(']');
 
-    for definition in definitions {
+    for li in page.select(&Selector::from_static("li.sense")) {
         let mut dictionary = cli.oxford().id().to_owned();
-        if is_polysemous {
-            dictionary.push_str("#:~:text=");
-            for str in form_urlencoded::byte_serialize(definition.as_bytes()) {
-                dictionary.push_str(if str == "+" { "%20" } else { str });
-            }
+        if let Some(sense) = li.attr("id") {
+            dictionary.push('#');
+            dictionary.push_str(sense);
         }
+
+        let definition = li
+            .select(&Selector::from_static("span.def"))
+            .next()
+            .map(|span| span.text().collect())
+            .unwrap_or_default();
 
         csv.write_record([
             &dictionary,
