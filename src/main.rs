@@ -69,7 +69,8 @@ async fn main() -> Result<()> {
         .next()
         .ok_or_else(|| anyhow!("no phonetic"))?
         .text()
-        .collect::<String>();
+        .collect::<String>()
+        .replace('/', "");
     pronunciation.push_str("[sound:");
     pronunciation.push_str(&audio_file.await??);
     pronunciation.push(']');
