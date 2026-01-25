@@ -8,7 +8,11 @@ use cli::Cli;
 use output::Output;
 use scraper::{Html, Selector};
 use selector::ValidSelector as _;
-use std::{env::set_current_dir, fs::OpenOptions, io::stdout};
+use std::{
+    env::set_current_dir,
+    fs::OpenOptions,
+    io::{Write as _, stdout},
+};
 use tokio::{fs, spawn};
 use url::Url;
 
@@ -54,10 +58,17 @@ async fn main() -> Result<()> {
         .collect();
 
     let wtr = if cli.output() {
-        let file = OpenOptions::new()
+        let mut file = OpenOptions::new()
             .append(true)
             .create(true)
             .open("anki-oxford.csv")?;
+
+        if let Ok(metadata) = file.metadata()
+            && metadata.len() == 0
+        {
+            file.write_all(b"#separator:comma\n#html:false\n")?;
+        }
+
         Output::File(file)
     } else {
         Output::Stdout(stdout())
